@@ -1,0 +1,111 @@
+from pymongo import MongoClient, InsertOne, UpdateOne, DeleteOne
+
+# Establish client connection
+client = MongoClient('mongodb://localhost:27017/')
+db = client['university_db']
+courses_collection = db['courses']
+
+# Bulk insert of courses with student enrollments
+operations = [
+    InsertOne({'course': 'Math 101', 'enrollments': 30, 'department': 'Mathematics'}),
+    InsertOne({'course': 'CS 102', 'enrollments': 25, 'department': 'Computer Science'}),
+    InsertOne({'course': 'History 201', 'enrollments': 20, 'department': 'History'}),
+    InsertOne({'course': 'Physics 202', 'enrollments': 15, 'department': 'Physics'}),
+    InsertOne({'course': 'Electricity and magnetism 203', 'enrollments': 37, 'department': 'Physics'}),
+    InsertOne({'course': 'AI 303', 'enrollments': 28, 'department': 'Computer Science'}),
+    InsertOne({'course': 'Machine Leaning 301', 'enrollments': 30, 'department': 'Computer Science'}),
+    InsertOne({'course': 'Algebra 304', 'enrollments': 35, 'department': 'Mathematics'}),
+    InsertOne({'course': 'Calculus 205', 'enrollments': 40, 'department': 'Mathematics'}),
+    InsertOne({'course': 'Roman history: the rise and fall of the Republic 333', 'enrollments': 32, 'department': 'History'}),
+    InsertOne({'course': 'History of the British Isles 240', 'enrollments': 31, 'department': 'History'}),
+    
+]
+courses_collection.bulk_write(operations)
+print('Courses inserted successfully.')
+
+
+print("---------------------------------- complex filtering and querying ----------------------------------")
+
+### 2. Complex Filtering and Querying
+for course in courses_collection.find({'enrollments': {'$gt': 20}}):
+    print(course)
+
+# Query courses in Computer Science or Mathematics departments
+for course in courses_collection.find({'department': {'$in': ['Computer Science', 'Mathematics']}}):
+    print(course)
+
+print("---------------------------------- avg enrollment per dept using aggregation ----------------------------------")
+### 3. Aggregation Framework for Data Analysis
+# Average enrollment per department using aggregation
+pipeline = [
+    {'$group': {'_id': '$department', 'average_enrollment': {'$avg': '$enrollments'}}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
+print("---------------------------------- max enrollment per dept ----------------------------------")
+ # Maximum enrollment per department
+pipeline = [
+    {'$group': {'_id': '$department', 'max_enrollment': {'$max': '$enrollments'}}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
+ ### 4. Data Transformation using $project and $addFields
+# - **Exercise 4**: Use `$project` to rename and only show fields: `course_name`, `department_name`, and `enrollments`.
+# - **Task 4**: Use `$addFields` to create a new field `enrollment_category` where enrollments > 20 are 'high' and others 'low'.
+# Projection to rename fields
+print("---------------------------------- renaming fields ----------------------------------")
+pipeline = [
+    {'$project': {'course_name': '$course', 'department_name': '$department', 'enrollments': 1}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
+print("---------------------------------- addding enrollment category field based on enrollments ----------------------------------")
+# Adding enrollment category field based on enrollments
+pipeline = [
+    {'$addFields': {'enrollment_category': {'$cond': {'if': {'$gt': ['$enrollments', 20]}, 'then': 'high', 'else': 'low'}}}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
+#HOMEWORK
+print("1. ---------------------------------- Using aggregation to count courses per dept ----------------------------------")
+# 1. Perform an aggregation to get a count of courses per department.
+pipeline = [
+    {'$group': {'_id': '$department', 'course_count': {'$sum': 1}}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
+print("2. ---------------------------------- Using '$match' and '$group' to filtering in 'computer science' ----------------------------------")
+#2.  Use `$match` and `$group` together to filter and get only courses with enrollments over 25 in 'Computer Science'.
+pipeline = [
+    {'$match': {'enrollments': {'$gt': 25}, 'department': 'Computer Science'}},
+    {'$group': {'_id': '$department', 'courses': {'$push': '$course'}}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+print("2. ---------------------------------- Using '$match' and '$group' to filtering in every department ----------------------------------")
+pipeline = [
+    {'$match' : {'enrollments' : {'$gt' : 20}}},
+    {'$group': {'_id' : '$department', 'courses' : {'$push' : '$courses'}}}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
+print("3. ---------------------------------- Using '$lookup' to join courses ----------------------------------")
+#3. Apply `$lookup` to join `courses` collection with `students` collection based on student enrollments.
+students_collection = db['students']
+pipeline = [
+    {'$lookup': {
+        'from': 'students',
+        'localField': 'course',
+        'foreignField': 'enrolled_course',
+        'as': 'student_info'
+    }}
+]
+for result in courses_collection.aggregate(pipeline):
+    print(result)
+
