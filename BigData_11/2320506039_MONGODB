@@ -5,7 +5,7 @@ client = MongoClient('mongodb://localhost:27017/')
 db = client['university_db']
 courses_collection = db['courses']
 
-# Bulk insert of courses with student enrollments
+# Bulk insert of courses with student enrollments, using upsert to avoid duplicates
 operations = [
     InsertOne({'course': 'Math 101', 'enrollments': 30, 'department': 'Mathematics'}),
     InsertOne({'course': 'CS 102', 'enrollments': 25, 'department': 'Computer Science'}),
@@ -18,10 +18,11 @@ operations = [
     InsertOne({'course': 'Calculus 205', 'enrollments': 40, 'department': 'Mathematics'}),
     InsertOne({'course': 'Roman history: the rise and fall of the Republic 333', 'enrollments': 32, 'department': 'History'}),
     InsertOne({'course': 'History of the British Isles 240', 'enrollments': 31, 'department': 'History'}),
-    
 ]
+
 courses_collection.bulk_write(operations)
 print('Courses inserted successfully.')
+
 
 
 print("---------------------------------- complex filtering and querying ----------------------------------")
@@ -29,6 +30,8 @@ print("---------------------------------- complex filtering and querying -------
 ### 2. Complex Filtering and Querying
 for course in courses_collection.find({'enrollments': {'$gt': 20}}):
     print(course)
+
+print("---------------------------------- end of filtering ----------------------------------")
 
 # Query courses in Computer Science or Mathematics departments
 for course in courses_collection.find({'department': {'$in': ['Computer Science', 'Mathematics']}}):
@@ -90,14 +93,60 @@ for result in courses_collection.aggregate(pipeline):
 print("2. ---------------------------------- Using '$match' and '$group' to filtering in every department ----------------------------------")
 pipeline = [
     {'$match' : {'enrollments' : {'$gt' : 20}}},
-    {'$group': {'_id' : '$department', 'courses' : {'$push' : '$courses'}}}
+    {'$group': {'_id' : '$department', 'courses' : {'$push' : '$course'}}}
 ]
 for result in courses_collection.aggregate(pipeline):
     print(result)
 
-print("3. ---------------------------------- Using '$lookup' to join courses ----------------------------------")
-#3. Apply `$lookup` to join `courses` collection with `students` collection based on student enrollments.
+
+from pymongo import MongoClient, InsertOne, UpdateOne, DeleteOne
+
+client = MongoClient('mongodb://localhost:27017/')
+db = client['university_db']
+courses_collection = db['courses']
 students_collection = db['students']
+
+#Menghinfari dublikasi
+courses_collection.delete_many({})
+students_collection.delete_many({})
+
+# bulkwrite
+course_operations = [
+    InsertOne({'course': 'Math 101', 'enrollments': 30, 'department': 'Mathematics'}),
+    InsertOne({'course': 'CS 102', 'enrollments': 25, 'department': 'Computer Science'}),
+    InsertOne({'course': 'History 201', 'enrollments': 20, 'department': 'History'}),
+    InsertOne({'course': 'Physics 202', 'enrollments': 15, 'department': 'Physics'}),
+    InsertOne({'course': 'Electricity and magnetism 203', 'enrollments': 37, 'department': 'Physics'}),
+    InsertOne({'course': 'AI 303', 'enrollments': 28, 'department': 'Computer Science'}),
+    InsertOne({'course': 'Machine Learning 301', 'enrollments': 30, 'department': 'Computer Science'}),
+    InsertOne({'course': 'Algebra 304', 'enrollments': 35, 'department': 'Mathematics'}),
+    InsertOne({'course': 'Calculus 205', 'enrollments': 40, 'department': 'Mathematics'}),
+    InsertOne({'course': 'Roman history: the rise and fall of the Republic 333', 'enrollments': 32, 'department': 'History'}),
+    InsertOne({'course': 'History of the British Isles 240', 'enrollments': 31, 'department': 'History'}),
+]
+
+courses_collection.bulk_write(course_operations)
+print('Courses inserted successfully.')
+
+# bulk students
+student_operations = [
+    InsertOne({'student_id': 1, 'name': 'Abdul', 'enrolled_course': 'Math 101'}),
+    InsertOne({'student_id': 2, 'name': 'Bernard', 'enrolled_course': 'CS 102'}),
+    InsertOne({'student_id': 3, 'name': 'Dimas', 'enrolled_course': 'History 201'}),
+    InsertOne({'student_id': 4, 'name': 'Donald', 'enrolled_course': 'Physics 202'}),
+    InsertOne({'student_id': 5, 'name': 'Ether', 'enrolled_course': 'AI 303'}),
+    InsertOne({'student_id': 6, 'name': 'Hanna', 'enrolled_course': 'Machine Learning 301'}),
+    InsertOne({'student_id': 7, 'name': 'Bob', 'enrolled_course': 'Algebra 304'}),
+    InsertOne({'student_id': 8, 'name': 'Ivanka', 'enrolled_course': 'Calculus 205'}),
+    InsertOne({'student_id': 9, 'name': 'Camilla', 'enrolled_course': 'Roman history: the rise and fall of the Republic 333'}),
+    InsertOne({'student_id': 10, 'name': 'Olivia', 'enrolled_course': 'History of the British Isles 240'}),
+]
+
+students_collection.bulk_write(student_operations)
+print('Students inserted successfully.')
+
+# $lookup
+print("---------------------------------- Using '$lookup' to join courses with students ----------------------------------")
 pipeline = [
     {'$lookup': {
         'from': 'students',
@@ -108,4 +157,6 @@ pipeline = [
 ]
 for result in courses_collection.aggregate(pipeline):
     print(result)
+
+ 
 
